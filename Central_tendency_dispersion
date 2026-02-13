@@ -1,0 +1,108 @@
+# Ejercicio 1: Employee Performance (Distribución Normal)
+from scipy import stats
+
+perf_mean = 75
+perf_std = 8
+
+# 1. Crear el objeto de distribución normal
+perf_dist = stats.norm(loc=perf_mean, scale=perf_std)
+
+# 2. Z-score y Percentil para score de 88
+score = 88
+z_score = (score - perf_mean) / perf_std
+percentile = perf_dist.cdf(score)  # Cumulative Distribution Function
+
+print(f"Z-score: {z_score:.2f} | Percentil: {percentile*100:.1f}%")
+
+# 3. Top 15% para bonos (buscamos el valor que deja el 85% atrás)
+# Usamos Percent Point Function (la inversa de la CDF)
+min_score = perf_dist.ppf(0.85)
+print(f"Puntaje mínimo para bono: {min_score:.2f}")
+
+# 4. Porcentaje entre 70 y 85
+prob_70_85 = perf_dist.cdf(85) - perf_dist.cdf(70)
+print(f"Porcentaje entre 70 y 85: {prob_70_85*100:.2f}%")
+# Ejercicio 2: Diferentes Escalas (Z-scores)
+# Alice: Test A (500, 100) score 650
+z_alice = (650 - 500) / 100
+
+# Bob: Test B (25, 5) score 33
+z_bob = (33 - 25) / 5
+
+print(f"Z-Alice: {z_alice} | Z-Bob: {z_bob}")
+
+# Comparación y percentiles
+better = "Alice" if z_alice > z_bob else "Bob"
+p_alice = stats.norm.cdf(z_alice)
+p_bob = stats.norm.cdf(z_bob)
+
+print(f"Mejor rendimiento relativo: {better}")
+print(f"Percentil Alice: {p_alice*100:.1f}% | Percentil Bob: {p_bob*100:.1f}%")
+# Ejercicio 3: Quality Control (Control de Procesos)
+bolt_mean = 10
+bolt_std = 0.2
+
+# 1. % de rechazo (Fuera de 9.6 y 10.4)
+# Probabilidad de estar dentro:
+p_dentro = stats.norm.cdf(10.4, bolt_mean, bolt_std) - stats.norm.cdf(9.6, bolt_mean, bolt_std)
+p_rechazo = 1 - p_dentro
+print(f"Porcentaje de rechazo: {p_rechazo*100:.2f}%")
+print(f"Rechazados en 10,000 pernos: {int(p_rechazo * 10000)}")
+
+# 2. Reducir rechazo al 1% (0.5% en cada cola)
+# Buscamos el Z que corresponde a un área acumulada de 0.995
+z_objetivo = stats.norm.ppf(0.995)
+# Despejamos std de la fórmula Z = (X - mu) / sigma -> sigma = (X - mu) / Z
+nuevo_std = (10.4 - bolt_mean) / z_objetivo
+print(f"Desviación estándar necesaria para 1% de rechazo: {nuevo_std:.4f}mm")
+
+# Ejercicio 4: Standardizing a Dataset (Puntajes Compuestos)
+import pandas as pd
+import numpy as np
+
+# Datos
+np.random.seed(42)
+customers = pd.DataFrame({
+    'customer_id': range(1, 51),
+    'purchase_amount': np.random.normal(150, 40, 50),
+    'visits_per_month': np.random.normal(8, 3, 50),
+    'satisfaction_score': np.random.normal(4.2, 0.5, 50)
+})
+
+# 1. Estandarizar
+cols = ['purchase_amount', 'visits_per_month', 'satisfaction_score']
+for col in cols:
+    customers[f'{col[:4]}_z'] = (customers[col] - customers[col].mean()) / customers[col].std()
+
+# 2. Score compuesto y Top 5
+z_cols = ['purc_z', 'visi_z', 'sati_z']
+customers['composite_score'] = customers[z_cols].mean(axis=1)
+print("\nTop 5 Clientes:")
+print(customers.nlargest(5, 'composite_score')[['customer_id', 'composite_score']])
+
+# 3. Outliers (Z > 2 o Z < -2)
+outliers = customers[(customers[z_cols].abs() > 2).any(axis=1)]
+print(f"\nClientes inusuales detectados: {len(outliers)}")
+# Ejercicio 5: Checking for Normality (Pruebas de Hipótesis)
+import matplotlib.pyplot as plt
+
+datasets = {
+    "Normal": np.random.normal(50, 10, 500),
+    "Sesgada": np.random.exponential(10, 500),
+    "Bimodal": np.concatenate([np.random.normal(30, 2, 250), np.random.normal(70, 2, 250)])
+}
+
+for name, data in datasets.items():
+    # 1. Visualización
+    plt.hist(data, bins=30, alpha=0.7)
+    plt.title(f"Distribución {name}")
+    plt.show()
+    
+    # 2. Skewness
+    sk = stats.skew(data)
+    
+    # 3. Test de Shapiro-Wilk (p-value > 0.05 significa que es Normal)
+    W, p_value = stats.shapiro(data)
+    
+    is_normal = "Sí" if p_value > 0.05 else "No"
+    print(f"Dataset {name:7} | Skewness: {sk:5.2f} | Shapiro p-value: {p_value:5.4f} | ¿Es Normal? {is_normal}")
